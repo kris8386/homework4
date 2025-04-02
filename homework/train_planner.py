@@ -1,5 +1,3 @@
-print("Time to train")
-
 """
 Usage:
     python3 -m homework.train_planner
@@ -11,9 +9,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from homework.models import MLPPlanner, save_model
-from homework.datasets.road_dataset import RoadDataset
+from homework.datasets.road_dataset import load_data
 from homework.metrics import PlannerMetric
-
 
 def train(
     model_name="mlp_planner",
@@ -25,12 +22,26 @@ def train(
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Dataset & DataLoader
-    train_dataset = RoadDataset(split="train", transform_pipeline=transform_pipeline, use_image=False)
-    val_dataset = RoadDataset(split="val", transform_pipeline=transform_pipeline, use_image=False)
+    # Load dataset using helper function
+    data_root = "drive_data"  # Adjust if needed
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    train_loader = load_data(
+        dataset_path=f"{data_root}/train",
+        transform_pipeline=transform_pipeline,
+        return_dataloader=True,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=True
+    )
+
+    val_loader = load_data(
+        dataset_path=f"{data_root}/val",
+        transform_pipeline=transform_pipeline,
+        return_dataloader=True,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
 
     # Model, Loss, Optimizer
     model = MLPPlanner().to(device)
@@ -81,6 +92,13 @@ def train(
     print("✅ Model saved!")
 
 
-# Run train() with specified arguments
 if __name__ == "__main__":
-    train()
+    for lr in [1e-2, 1e-3, 1e-4]:
+        train(
+            model_name="mlp_planner",
+            transform_pipeline="state_only",
+            num_workers=4,
+            lr=lr,
+            batch_size=128,
+            num_epoch=40,
+        )
