@@ -12,6 +12,7 @@ from homework.models import MLPPlanner, save_model
 from homework.datasets.road_dataset import load_data
 from homework.metrics import PlannerMetric
 
+
 def train(
     model_name="mlp_planner",
     transform_pipeline="state_only",
@@ -22,32 +23,34 @@ def train(
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Load dataset using helper function
-    data_root = "drive_data"  # Adjust if needed
-
+    # Load dataset
+    data_root = "drive_data"
     train_loader = load_data(
         dataset_path=f"{data_root}/train",
         transform_pipeline=transform_pipeline,
         return_dataloader=True,
         batch_size=batch_size,
         num_workers=num_workers,
-        shuffle=True
+        shuffle=True,
     )
-
     val_loader = load_data(
         dataset_path=f"{data_root}/val",
         transform_pipeline=transform_pipeline,
         return_dataloader=True,
         batch_size=batch_size,
         num_workers=num_workers,
-        shuffle=False
+        shuffle=False,
     )
 
-    # Model, Loss, Optimizer
+    # Initialize model
     model = MLPPlanner().to(device)
-    criterion = nn.L1Loss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
 
+    # Loss, Optimizer, Scheduler
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
+
+    # Training loop
     for epoch in range(num_epoch):
         model.train()
         running_loss = 0.0
@@ -55,6 +58,14 @@ def train(
         for batch in train_loader:
             track_left = batch["track_left"].to(device)
             track_right = batch["track_right"].to(device)
+
+            # Normalize left/right tracks per batch
+            tracks = torch.cat([track_left, track_right], dim=2)  # (B, 10, 4)
+            mean = tracks.mean(dim=(1, 2), keepdim=True)
+            std = tracks.std(dim=(1, 2), keepdim=True) + 1e-6
+            track_left = (track_left - mean[..., :2]) / std[..., :2]
+            track_right = (track_right - mean[..., 2:]) / std[..., 2:]
+
             waypoints = batch["waypoints"].to(device)
             mask = batch["waypoints_mask"].to(device)
 
@@ -76,6 +87,14 @@ def train(
             for batch in val_loader:
                 track_left = batch["track_left"].to(device)
                 track_right = batch["track_right"].to(device)
+
+                # Normalize left/right tracks per batch
+                tracks = torch.cat([track_left, track_right], dim=2)
+                mean = tracks.mean(dim=(1, 2), keepdim=True)
+                std = tracks.std(dim=(1, 2), keepdim=True) + 1e-6
+                track_left = (track_left - mean[..., :2]) / std[..., :2]
+                track_right = (track_right - mean[..., 2:]) / std[..., 2:]
+
                 waypoints = batch["waypoints"].to(device)
                 mask = batch["waypoints_mask"].to(device)
 
@@ -87,18 +106,20 @@ def train(
               f"Longitudinal: {results['longitudinal_error']:.4f}, "
               f"Lateral: {results['lateral_error']:.4f}")
 
-    # Save the model
+        scheduler.step()
+
+    # Save model
     save_model(model)
     print("✅ Model saved!")
 
 
 if __name__ == "__main__":
-    for lr in [1e-2, 1e-3, 1e-4]:
-        train(
-            model_name="mlp_planner",
-            transform_pipeline="state_only",
-            num_workers=4,
-            lr=lr,
-            batch_size=128,
-            num_epoch=40,
-        )
+    lr = 1e-3
+    train(
+        model_name="mlp_planner",
+        transform_pipeline="state_only",
+        num_workers=4,
+        lr=lr,
+        batch_size=128,
+        num_epoch=40,
+    )

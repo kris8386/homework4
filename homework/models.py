@@ -25,15 +25,17 @@ class MLPPlanner(nn.Module):
         self.n_waypoints = n_waypoints
         # Each track has 10 points, each with 2 coordinates => 20 values per track
         input_dim = n_track * 2 * 2  # left and right tracks
-        hidden_dim = 128
         output_dim = n_waypoints * 2  # each waypoint has 2 coordinates
 
         self.mlp = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
+            nn.Linear(input_dim, 256),
             nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Dropout(0.2),
+            nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(hidden_dim, output_dim),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_dim),
         )
 
     def forward(
