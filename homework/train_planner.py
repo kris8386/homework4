@@ -59,12 +59,14 @@ def train(
             track_left = batch["track_left"].to(device)
             track_right = batch["track_right"].to(device)
 
-            # Normalize left/right tracks per batch
-            tracks = torch.cat([track_left, track_right], dim=2)  # (B, 10, 4)
-            mean = tracks.mean(dim=(1, 2), keepdim=True)
-            std = tracks.std(dim=(1, 2), keepdim=True) + 1e-6
-            track_left = (track_left - mean[..., :2]) / std[..., :2]
-            track_right = (track_right - mean[..., 2:]) / std[..., 2:]
+            # Normalize each track separately (per batch)
+            left_mean = track_left.mean(dim=(1, 2), keepdim=True)
+            left_std = track_left.std(dim=(1, 2), keepdim=True) + 1e-6
+            track_left = (track_left - left_mean) / left_std
+
+            right_mean = track_right.mean(dim=(1, 2), keepdim=True)
+            right_std = track_right.std(dim=(1, 2), keepdim=True) + 1e-6
+            track_right = (track_right - right_mean) / right_std
 
             waypoints = batch["waypoints"].to(device)
             mask = batch["waypoints_mask"].to(device)
@@ -88,12 +90,14 @@ def train(
                 track_left = batch["track_left"].to(device)
                 track_right = batch["track_right"].to(device)
 
-                # Normalize left/right tracks per batch
-                tracks = torch.cat([track_left, track_right], dim=2)
-                mean = tracks.mean(dim=(1, 2), keepdim=True)
-                std = tracks.std(dim=(1, 2), keepdim=True) + 1e-6
-                track_left = (track_left - mean[..., :2]) / std[..., :2]
-                track_right = (track_right - mean[..., 2:]) / std[..., 2:]
+                # Normalize each track separately (per batch)
+                left_mean = track_left.mean(dim=(1, 2), keepdim=True)
+                left_std = track_left.std(dim=(1, 2), keepdim=True) + 1e-6
+                track_left = (track_left - left_mean) / left_std
+
+                right_mean = track_right.mean(dim=(1, 2), keepdim=True)
+                right_std = track_right.std(dim=(1, 2), keepdim=True) + 1e-6
+                track_right = (track_right - right_mean) / right_std
 
                 waypoints = batch["waypoints"].to(device)
                 mask = batch["waypoints_mask"].to(device)
@@ -114,12 +118,13 @@ def train(
 
 
 if __name__ == "__main__":
-    lr = 1e-3
-    train(
-        model_name="mlp_planner",
-        transform_pipeline="state_only",
-        num_workers=4,
-        lr=lr,
-        batch_size=128,
-        num_epoch=40,
-    )
+    for lr in [1e-2, 1e-3, 1e-4]:
+        print(f"\n=== Training with lr={lr} ===\n")
+        train(
+            model_name="mlp_planner",
+            transform_pipeline="state_only",
+            num_workers=4,
+            lr=lr,
+            batch_size=128,
+            num_epoch=40,
+        )
