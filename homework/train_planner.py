@@ -15,7 +15,7 @@ from homework.datasets.road_dataset import RoadDataset
 from homework.metrics import PlannerMetric
 
 
-def main():
+def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Hyperparameters
