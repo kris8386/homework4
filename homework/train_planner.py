@@ -1,9 +1,9 @@
+print("Time to train")
+
 """
 Usage:
-    python3 -m homework.train_planner --your_args here
+    python3 -m homework.train_planner
 """
-
-print("Time to train")
 
 import torch
 import torch.nn as nn
@@ -15,28 +15,29 @@ from homework.datasets.road_dataset import RoadDataset
 from homework.metrics import PlannerMetric
 
 
-def train():
+def train(
+    model_name="mlp_planner",
+    transform_pipeline="state_only",
+    num_workers=4,
+    lr=1e-3,
+    batch_size=128,
+    num_epoch=40,
+):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Hyperparameters
-    batch_size = 64
-    num_epochs = 30
-    learning_rate = 1e-3
+    # Dataset & DataLoader
+    train_dataset = RoadDataset(split="train", transform_pipeline=transform_pipeline, use_image=False)
+    val_dataset = RoadDataset(split="val", transform_pipeline=transform_pipeline, use_image=False)
 
-    # Datasets and loaders
-    train_dataset = RoadDataset(split="train", use_image=False)
-    val_dataset = RoadDataset(split="val", use_image=False)
-
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     # Model, Loss, Optimizer
     model = MLPPlanner().to(device)
-    criterion = nn.L1Loss()  # You can also try nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    criterion = nn.L1Loss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    # Training loop
-    for epoch in range(num_epochs):
+    for epoch in range(num_epoch):
         model.train()
         running_loss = 0.0
 
@@ -54,9 +55,9 @@ def train():
 
             running_loss += loss.item()
 
-        print(f"[Epoch {epoch + 1}/{num_epochs}] Train Loss: {running_loss / len(train_loader):.4f}")
+        print(f"[Epoch {epoch + 1}/{num_epoch}] Train Loss: {running_loss / len(train_loader):.4f}")
 
-        # Evaluation
+        # Validation
         model.eval()
         metric = PlannerMetric()
 
@@ -75,10 +76,11 @@ def train():
               f"Longitudinal: {results['longitudinal_error']:.4f}, "
               f"Lateral: {results['lateral_error']:.4f}")
 
-    # Save model
+    # Save the model
     save_model(model)
     print("✅ Model saved!")
 
 
+# Run train() with specified arguments
 if __name__ == "__main__":
-    main()
+    train()
