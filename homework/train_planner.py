@@ -114,7 +114,7 @@ def train(
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
         save_model(model)
-        print(f"📦 Saved best model with val loss {best_val_loss:.4f}")
+        print(f"✅ Saved best model with val loss {best_val_loss:.4f}")
 
 
 if __name__ == "__main__":
