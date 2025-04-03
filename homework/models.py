@@ -1,4 +1,5 @@
 from pathlib import Path
+import math
 
 import torch
 import torch.nn as nn
@@ -130,6 +131,23 @@ class TransformerPlanner(nn.Module):
         # Output projection to 2D waypoints
         output = self.output_proj(decoded)  # (B, n_waypoints, 2)
         return output
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=50):
+        super().__init__()
+        pe = torch.zeros(max_len, d_model)  # (max_len, d_model)
+        position = torch.arange(0, max_len).unsqueeze(1).float()
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+        )
+        pe[:, 0::2] = torch.sin(position * div_term)  # even index
+        pe[:, 1::2] = torch.cos(position * div_term)  # odd index
+        self.register_buffer("pe", pe.unsqueeze(0))  # shape (1, max_len, d_model)
+
+    def forward(self, x):
+        # x shape: (B, T, d_model)
+        x = x + self.pe[:, :x.size(1), :]
+        return x
 
 
 class CNNPlanner(torch.nn.Module):

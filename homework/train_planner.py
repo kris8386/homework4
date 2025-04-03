@@ -55,7 +55,7 @@ def train(
     # Loss, Optimizer, Scheduler
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epoch)
 
     # Training loop
     for epoch in range(num_epoch):
