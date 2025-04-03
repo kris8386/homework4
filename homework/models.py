@@ -82,11 +82,12 @@ class TransformerPlanner(nn.Module):
 
         # Learnable queries for each waypoint
         self.query_embed = nn.Parameter(torch.randn(n_waypoints, d_model))
-        
+
          # Transformer decoder to map queries → attention on inputs
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=d_model,
             nhead=nhead,
+            dropout=0.1,
             batch_first=True,
         )
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
