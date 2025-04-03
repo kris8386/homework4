@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from homework.models import MLPPlanner, save_model
+from homework.models import load_model, save_model
 from homework.datasets.road_dataset import load_data
 from homework.metrics import PlannerMetric
 
@@ -42,8 +42,15 @@ def train(
         shuffle=False,
     )
 
-    # Initialize model
-    model = MLPPlanner().to(device)
+    # Load model (dynamically supports both MLP and Transformer)
+    model = load_model(
+        model_name,
+        n_track=10,
+        n_waypoints=3,
+        d_model=64,        # Transformer only
+        nhead=4,           # Transformer only
+        num_layers=2,      # Transformer only
+    ).to(device)
 
     # Loss, Optimizer, Scheduler
     criterion = nn.MSELoss()
@@ -99,10 +106,10 @@ def train(
 
 if __name__ == "__main__":
     for lr in [1e-2, 1e-3, 1e-4]:
-        print(f"\n=== Training with lr={lr} ===\n")
+        print(f"\n=== Training with {lr=}, model=transformer_planner ===\n")
         train(
-            model_name="mlp_planner",
-            transform_pipeline="state_only",
+            model_name="transformer_planner",
+            transform_pipeline="aug",  # or "state_only"
             num_workers=4,
             lr=lr,
             batch_size=128,

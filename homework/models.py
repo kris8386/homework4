@@ -69,13 +69,30 @@ class TransformerPlanner(nn.Module):
         n_track: int = 10,
         n_waypoints: int = 3,
         d_model: int = 64,
+        nhead: int = 4,
+        num_layers: int = 2,        
     ):
         super().__init__()
-
         self.n_track = n_track
         self.n_waypoints = n_waypoints
+        self.d_model = d_model
 
-        self.query_embed = nn.Embedding(n_waypoints, d_model)
+        # Project 2D track points into d_model dimension
+        self.input_proj = nn.Linear(2, d_model)
+
+        # Learnable queries for each waypoint
+        self.query_embed = nn.Parameter(torch.randn(n_waypoints, d_model))
+        
+         # Transformer decoder to map queries → attention on inputs
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            batch_first=True,
+        )
+        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
+
+        # Final projection to 2D coordinates
+        self.output_proj = nn.Linear(d_model, 2)
 
     def forward(
         self,
@@ -96,7 +113,22 @@ class TransformerPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        raise NotImplementedError
+        B = track_left.size(0)
+
+        # Encode track boundaries
+        track_l = self.input_proj(track_left)   # (B, 10, d_model)
+        track_r = self.input_proj(track_right)  # (B, 10, d_model)
+        memory = torch.cat([track_l, track_r], dim=1)  # (B, 20, d_model)
+
+        # Expand query embeddings to batch
+        queries = self.query_embed.unsqueeze(0).expand(B, -1, -1)  # (B, n_waypoints, d_model)
+
+        # Cross-attend from queries to memory
+        decoded = self.decoder(tgt=queries, memory=memory)  # (B, n_waypoints, d_model)
+
+        # Output projection to 2D waypoints
+        output = self.output_proj(decoded)  # (B, n_waypoints, 2)
+        return output
 
 
 class CNNPlanner(torch.nn.Module):
