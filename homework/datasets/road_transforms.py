@@ -263,3 +263,35 @@ class EgoTrackProcessor:
             "waypoints": waypoints.astype(np.float32),
             "waypoints_mask": waypoints_mask,
         }
+    
+class AddTrackNoise:
+    """
+    Adds Gaussian noise to the track points.
+    Simulates sensor jitter or imperfect input.
+    """
+    def __init__(self, std=0.01):
+        self.std = std
+
+    def __call__(self, sample):
+        for key in ["track_left", "track_right"]:
+            if key in sample:
+                noise = np.random.normal(0, self.std, sample[key].shape).astype(np.float32)
+                sample[key] += noise
+        return sample
+
+
+class RandomTrackShift:
+    """
+    Applies a random lateral shift to the entire track.
+    Simulates slight position offset.
+    """
+    def __init__(self, max_offset=0.1):
+        self.max_offset = max_offset
+
+    def __call__(self, sample):
+        offset = np.random.uniform(-self.max_offset, self.max_offset)
+        shift = np.array([offset, 0], dtype=np.float32)
+        for key in ["track_left", "track_right"]:
+            if key in sample:
+                sample[key] += shift
+        return sample
