@@ -58,16 +58,6 @@ def train(
         for batch in train_loader:
             track_left = batch["track_left"].to(device)
             track_right = batch["track_right"].to(device)
-
-            # Normalize each track separately (per batch)
-            left_mean = track_left.mean(dim=(1, 2), keepdim=True)
-            left_std = track_left.std(dim=(1, 2), keepdim=True) + 1e-6
-            track_left = (track_left - left_mean) / left_std
-
-            right_mean = track_right.mean(dim=(1, 2), keepdim=True)
-            right_std = track_right.std(dim=(1, 2), keepdim=True) + 1e-6
-            track_right = (track_right - right_mean) / right_std
-
             waypoints = batch["waypoints"].to(device)
             mask = batch["waypoints_mask"].to(device)
 
@@ -89,16 +79,6 @@ def train(
             for batch in val_loader:
                 track_left = batch["track_left"].to(device)
                 track_right = batch["track_right"].to(device)
-
-                # Normalize each track separately (per batch)
-                left_mean = track_left.mean(dim=(1, 2), keepdim=True)
-                left_std = track_left.std(dim=(1, 2), keepdim=True) + 1e-6
-                track_left = (track_left - left_mean) / left_std
-
-                right_mean = track_right.mean(dim=(1, 2), keepdim=True)
-                right_std = track_right.std(dim=(1, 2), keepdim=True) + 1e-6
-                track_right = (track_right - right_mean) / right_std
-
                 waypoints = batch["waypoints"].to(device)
                 mask = batch["waypoints_mask"].to(device)
 
