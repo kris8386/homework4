@@ -42,7 +42,7 @@ def train(
         shuffle=False,
     )
 
-    # Load model
+    # Load model (supports MLP and Transformer)
     model = load_model(
         model_name,
         n_track=10,
@@ -52,7 +52,7 @@ def train(
         num_layers=2,
     ).to(device)
 
-    # Loss and optimizer
+    # Loss, optimizer, scheduler
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
@@ -61,6 +61,7 @@ def train(
     best_val_loss = float("inf")
     best_model_state = None
 
+    # Training loop
     for epoch in range(num_epoch):
         model.train()
         running_loss = 0.0
@@ -70,13 +71,6 @@ def train(
             track_right = batch["track_right"].to(device)
             waypoints = batch["waypoints"].to(device)
             mask = batch["waypoints_mask"].to(device)
-
-            # ✅ Normalize input
-            all_tracks = torch.cat([track_left, track_right], dim=1)  # (B, 20, 2)
-            mean = all_tracks.mean(dim=1, keepdim=True)
-            std = all_tracks.std(dim=1, keepdim=True) + 1e-6
-            track_left = (track_left - mean) / std
-            track_right = (track_right - mean) / std
 
             optimizer.zero_grad()
             preds = model(track_left, track_right)
@@ -99,13 +93,6 @@ def train(
                 waypoints = batch["waypoints"].to(device)
                 mask = batch["waypoints_mask"].to(device)
 
-                # ✅ Normalize input
-                all_tracks = torch.cat([track_left, track_right], dim=1)  # (B, 20, 2)
-                mean = all_tracks.mean(dim=1, keepdim=True)
-                std = all_tracks.std(dim=1, keepdim=True) + 1e-6
-                track_left = (track_left - mean) / std
-                track_right = (track_right - mean) / std
-
                 preds = model(track_left, track_right)
                 metric.add(preds, waypoints, mask)
 
@@ -114,7 +101,7 @@ def train(
               f"Longitudinal: {results['longitudinal_error']:.4f}, "
               f"Lateral: {results['lateral_error']:.4f}")
 
-        # Save best model
+        # Save model if it's the best so far
         val_loss = results["l1_error"]
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -127,7 +114,7 @@ def train(
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
         save_model(model)
-        print(f"📦 Saved best model with val loss {best_val_loss:.4f}")
+        print(f"✅ Saved best model with val loss {best_val_loss:.4f}")
 
 
 if __name__ == "__main__":
@@ -139,5 +126,5 @@ if __name__ == "__main__":
             num_workers=4,
             lr=lr,
             batch_size=128,
-            num_epoch=60,
+            num_epoch=40,
         )
