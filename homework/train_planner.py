@@ -42,20 +42,24 @@ def train(
         shuffle=False,
     )
 
-    # Load model (dynamically supports both MLP and Transformer)
+    # Load model (supports MLP and Transformer)
     model = load_model(
         model_name,
         n_track=10,
         n_waypoints=3,
-        d_model=64,        # Transformer only
-        nhead=4,           # Transformer only
-        num_layers=2,      # Transformer only
+        d_model=64,
+        nhead=4,
+        num_layers=2,
     ).to(device)
 
-    # Loss, Optimizer, Scheduler
+    # Loss, optimizer, scheduler
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epoch)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
+
+    # Track best model
+    best_val_loss = float("inf")
+    best_model_state = None
 
     # Training loop
     for epoch in range(num_epoch):
@@ -97,11 +101,20 @@ def train(
               f"Longitudinal: {results['longitudinal_error']:.4f}, "
               f"Lateral: {results['lateral_error']:.4f}")
 
+        # Save model if it's the best so far
+        val_loss = results["l1_error"]
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_model_state = model.state_dict()
+            print("✅ New best model found and saved (val loss improved)")
+
         scheduler.step()
 
-    # Save model
-    save_model(model)
-    print("✅ Model saved!")
+    # Save best model at the end
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+        save_model(model, model_name)
+        print(f"📦 Saved best model with val loss {best_val_loss:.4f}")
 
 
 if __name__ == "__main__":
@@ -109,7 +122,7 @@ if __name__ == "__main__":
         print(f"\n=== Training with {lr=}, model=transformer_planner ===\n")
         train(
             model_name="transformer_planner",
-            transform_pipeline="aug",  # or "state_only"
+            transform_pipeline="aug",
             num_workers=4,
             lr=lr,
             batch_size=128,
