@@ -80,6 +80,7 @@ class TransformerPlanner(nn.Module):
 
         # Project 2D track points into d_model dimension
         self.input_proj = nn.Linear(2, d_model)
+        self.pos_encoder = PositionalEncoding(d_model=d_model, max_len=20)
 
         # Learnable queries for each waypoint
         self.query_embed = nn.Parameter(torch.randn(n_waypoints, d_model))
@@ -121,6 +122,7 @@ class TransformerPlanner(nn.Module):
         track_l = self.input_proj(track_left)   # (B, 10, d_model)
         track_r = self.input_proj(track_right)  # (B, 10, d_model)
         memory = torch.cat([track_l, track_r], dim=1)  # (B, 20, d_model)
+        memory = self.pos_encoder(memory)              # Add positional encoding
 
         # Expand query embeddings to batch
         queries = self.query_embed.unsqueeze(0).expand(B, -1, -1)  # (B, n_waypoints, d_model)

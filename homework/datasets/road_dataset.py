@@ -53,8 +53,8 @@ class RoadDataset(Dataset):
              xform = road_transforms.Compose(
                 [
                     road_transforms.EgoTrackProcessor(self.track),
-                    road_transforms.AddTrackNoise(std=0.02),
-                    road_transforms.RandomTrackShift(max_offset=0.1),
+                    road_transforms.AddTrackNoise(std=0.005),
+                    road_transforms.RandomTrackShift(max_offset=0.05),
                 ]
             )
 
