@@ -164,6 +164,34 @@ class CNNPlanner(torch.nn.Module):
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN), persistent=False)
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD), persistent=False)
 
+        # 🔧 Custom CNN backbone
+        self.encoder = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=5, stride=2, padding=2),  # → (B, 32, 48, 64)
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),  # → (B, 64, 24, 32)
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),  # → (B, 128, 12, 16)
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),  # → (B, 256, 6, 8)
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+
+            nn.AdaptiveAvgPool2d((1, 1))  # → (B, 256, 1, 1)
+        )
+        # 🔧 Fully connected head
+        self.head = nn.Sequential(
+            nn.Flatten(),                      # → (B, 256)
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, n_waypoints * 2)   # → (B, 6) if n_waypoints = 3
+        )  
+
     def forward(self, image: torch.Tensor, **kwargs) -> torch.Tensor:
         """
         Args:
@@ -175,7 +203,10 @@ class CNNPlanner(torch.nn.Module):
         x = image
         x = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        raise NotImplementedError
+        # CNN forward pass
+        x = self.encoder(x)      # → (B, 256, 1, 1)
+        x = self.head(x)         # → (B, n_waypoints * 2)
+        return x.view(-1, self.n_waypoints, 2)  # → (B, n_waypoints, 2)
 
 
 MODEL_FACTORY = {
