@@ -224,12 +224,31 @@ def load_model(
     """
     Called by the grader to load a pre-trained model by name
     """
-    m = MODEL_FACTORY[model_name](**model_kwargs)
 
+    if model_name == "cnn_planner":
+        m = MODEL_FACTORY[model_name](
+            n_waypoints=model_kwargs.get("n_waypoints", 3)
+        )
+    elif model_name == "mlp_planner":
+        m = MODEL_FACTORY[model_name](
+            n_track=model_kwargs.get("n_track", 10),
+            n_waypoints=model_kwargs.get("n_waypoints", 3)
+        )
+    elif model_name == "transformer_planner":
+        m = MODEL_FACTORY[model_name](
+            n_track=model_kwargs.get("n_track", 10),
+            n_waypoints=model_kwargs.get("n_waypoints", 3),
+            d_model=model_kwargs.get("d_model", 64),
+            nhead=model_kwargs.get("nhead", 4),
+            num_layers=model_kwargs.get("num_layers", 2)
+        )
+    else:
+        raise ValueError(f"Unknown model name: {model_name}")
+
+    # Load weights if needed
     if with_weights:
         model_path = HOMEWORK_DIR / f"{model_name}.th"
         assert model_path.exists(), f"{model_path.name} not found"
-
         try:
             m.load_state_dict(torch.load(model_path, map_location="cpu"))
         except RuntimeError as e:
@@ -237,9 +256,8 @@ def load_model(
                 f"Failed to load {model_path.name}, make sure the default model arguments are set correctly"
             ) from e
 
-    # limit model sizes since they will be zipped and submitted
+    # Size check
     model_size_mb = calculate_model_size_mb(m)
-
     if model_size_mb > 20:
         raise AssertionError(f"{model_name} is too large: {model_size_mb:.2f} MB")
 
