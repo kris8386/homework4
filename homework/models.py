@@ -224,7 +224,14 @@ def load_model(
     """
     Called by the grader to load a pre-trained model by name
     """
-    m = MODEL_FACTORY[model_name](**model_kwargs)
+    if model_name == "cnn_planner":
+        # CNNPlanner only accepts n_waypoints
+        m = MODEL_FACTORY[model_name](
+            n_waypoints=model_kwargs.get("n_waypoints", 3)
+        )
+    else:
+        # Other models (e.g. MLP, Transformer) use full kwargs
+        m = MODEL_FACTORY[model_name](**model_kwargs)
 
     if with_weights:
         model_path = HOMEWORK_DIR / f"{model_name}.th"
