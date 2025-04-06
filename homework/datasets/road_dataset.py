@@ -67,16 +67,23 @@ class RoadDataset(Dataset):
     def __len__(self):
         return len(self.frames["location"])
 
-    def __getitem__(self, idx: int):
-        sample = {"_idx": idx, "_frames": self.frames}
-        sample = self.transform(sample)
+def __getitem__(self, idx: int):
+    episode = self.episodes[idx]
 
-        # remove private keys
-        for key in list(sample.keys()):
-            if key.startswith("_"):
-                sample.pop(key)
+    sample = {"_idx": idx, "_frames": self.frames}
+    sample = self.transform(sample)
 
-        return sample
+    # ✅ Always include waypoints and mask, no matter the pipeline
+    sample["waypoints"] = torch.as_tensor(episode["waypoints"], dtype=torch.float32)
+    sample["waypoints_mask"] = torch.as_tensor(episode["waypoints_mask"], dtype=torch.float32)
+
+    # remove private keys
+    for key in list(sample.keys()):
+        if key.startswith("_"):
+            sample.pop(key)
+
+    return sample
+
 
 
 def load_data(
