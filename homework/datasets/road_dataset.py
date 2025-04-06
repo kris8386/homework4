@@ -38,6 +38,7 @@ class RoadDataset(Dataset):
         xform = None
 
         if transform_pipeline == "default":
+            # image, track_left, track_right, waypoints, waypoints_mask
             xform = road_transforms.Compose(
                 [
                     road_transforms.ImageLoader(self.episode_path),
@@ -45,19 +46,17 @@ class RoadDataset(Dataset):
                 ]
             )
         elif transform_pipeline == "state_only":
+            # track_left, track_right, waypoints, waypoints_mask
             xform = road_transforms.EgoTrackProcessor(self.track)
         elif transform_pipeline == "aug":
-            xform = road_transforms.Compose(
+            # add your custom augmentations here
+             xform = road_transforms.Compose(
                 [
                     road_transforms.EgoTrackProcessor(self.track),
                     road_transforms.AddTrackNoise(std=0.005),
                     road_transforms.RandomTrackShift(max_offset=0.05),
                 ]
             )
-        elif transform_pipeline == "image_only":
-            xform = road_transforms.Compose([
-                road_transforms.ImageLoader(self.episode_path),
-            ])
 
         if xform is None:
             raise ValueError(f"Invalid transform {transform_pipeline} specified!")
@@ -67,23 +66,16 @@ class RoadDataset(Dataset):
     def __len__(self):
         return len(self.frames["location"])
 
-def __getitem__(self, idx: int):
-    episode = self.episodes[idx]
+    def __getitem__(self, idx: int):
+        sample = {"_idx": idx, "_frames": self.frames}
+        sample = self.transform(sample)
 
-    sample = {"_idx": idx, "_frames": self.frames}
-    sample = self.transform(sample)
+        # remove private keys
+        for key in list(sample.keys()):
+            if key.startswith("_"):
+                sample.pop(key)
 
-    # ✅ Always include waypoints and mask, no matter the pipeline
-    sample["waypoints"] = torch.as_tensor(episode["waypoints"], dtype=torch.float32)
-    sample["waypoints_mask"] = torch.as_tensor(episode["waypoints_mask"], dtype=torch.float32)
-
-    # remove private keys
-    for key in list(sample.keys()):
-        if key.startswith("_"):
-            sample.pop(key)
-
-    return sample
-
+        return sample
 
 
 def load_data(
