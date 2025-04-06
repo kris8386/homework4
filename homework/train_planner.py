@@ -27,7 +27,7 @@ def train(
     # Choose transform pipeline based on model
     if transform_pipeline is None:
         if model_name == "cnn_planner":
-            transform_pipeline = "image_only"
+            transform_pipeline = "default"
         elif model_name == "transformer_planner":
             transform_pipeline = "aug"
         else:
