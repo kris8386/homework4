@@ -79,20 +79,21 @@ class TransformerPlanner(nn.Module):
         self.d_model = d_model
 
         # Project 2D track points into d_model dimension
-        self.input_proj = nn.Linear(2, d_model)
-        self.pos_encoder = PositionalEncoding(d_model=d_model, max_len=20)
+        self.input_proj = nn.Linear(3, d_model)
+        self.pos_encoder = PositionalEncoding(d_model=d_model)
 
         # Learnable queries for each waypoint
         self.query_embed = nn.Parameter(torch.randn(n_waypoints, d_model))
 
-         # Transformer decoder to map queries → attention on inputs
-        decoder_layer = nn.TransformerDecoderLayer(
-            d_model=d_model,
-            nhead=nhead,
-            dropout=0.1,
-            batch_first=True,
+         # Transformer encoder and decoder to map queries → attention on inputs
+        self.encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, batch_first=True),
+            num_layers=num_layers,
         )
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
+        self.decoder = nn.TransformerDecoder(
+            nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, batch_first=True),
+            num_layers=num_layers,
+        )
 
         # Final projection to 2D coordinates
         self.output_proj = nn.Linear(d_model, 2)
@@ -118,21 +119,32 @@ class TransformerPlanner(nn.Module):
         """
         B = track_left.size(0)
 
-        # Encode track boundaries
-        track_l = self.input_proj(track_left)   # (B, 10, d_model)
-        track_r = self.input_proj(track_right)  # (B, 10, d_model)
-        memory = torch.cat([track_l, track_r], dim=1)  # (B, 20, d_model)
-        memory = self.pos_encoder(memory)              # Add positional encoding
+        # Concatenate left & right → (B, 20, 2)
+        tracks = torch.cat([track_left, track_right], dim=1)
 
-        # Expand query embeddings to batch
-        queries = self.query_embed.unsqueeze(0).expand(B, -1, -1)  # (B, n_waypoints, d_model)
+        # Add track_type (0=left, 1=right) → (B, 20, 1)
+        track_type = torch.cat([
+            torch.zeros_like(track_left[..., :1]),  # (B, 10, 1)
+            torch.ones_like(track_right[..., :1]),  # (B, 10, 1)
+        ], dim=1)
 
-        # Cross-attend from queries to memory
-        decoded = self.decoder(tgt=queries, memory=memory)  # (B, n_waypoints, d_model)
+        # Combine → (B, 20, 3)
+        tracks_aug = torch.cat([tracks, track_type], dim=-1)
 
-        # Output projection to 2D waypoints
-        output = self.output_proj(decoded)  # (B, n_waypoints, 2)
-        return output
+        # Project to transformer dimension
+        x = self.input_proj(tracks_aug)      # (B, 20, d_model)
+        x = self.pos_encoder(x)              # ➕ Positional encoding
+        x = self.encoder(x)                  # (B, 20, d_model)
+
+        # Query embeddings (B, 3, d_model)
+        queries = self.query_embed.unsqueeze(0).expand(B, -1, -1)
+        decoded = self.decoder(queries, x)   # (B, 3, d_model)
+
+        # Normalize decoder output
+        decoded = nn.functional.layer_norm(decoded, decoded.shape[-1:])
+
+        # Project to (x, y)
+        return self.output_proj(decoded)     # (B, 3, 2)
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=50):

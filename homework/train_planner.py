@@ -91,7 +91,7 @@ def train(
                 mask = batch["waypoints_mask"].to(device)
                 preds = model(track_left, track_right)
 
-            loss = criterion(preds * mask[..., None], waypoints * mask[..., None])
+            loss = criterion(preds * 10 * mask[..., None], waypoints * 10 * mask[..., None])
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
