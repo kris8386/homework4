@@ -89,10 +89,12 @@ class TransformerPlanner(nn.Module):
         self.encoder = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, batch_first=True),
             num_layers=num_layers,
+            dropout=0.1,
         )
         self.decoder = nn.TransformerDecoder(
             nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, batch_first=True),
             num_layers=num_layers,
+            dropout=0.1,
         )
 
         # Final projection to 2D coordinates
