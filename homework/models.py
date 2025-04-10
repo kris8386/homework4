@@ -87,14 +87,12 @@ class TransformerPlanner(nn.Module):
 
          # Transformer encoder and decoder to map queries → attention on inputs
         self.encoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, batch_first=True),
-            num_layers=num_layers,
-            dropout=0.1,
+            nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, batch_first=True, dropout=0.1),
+            num_layers=num_layers,            
         )
         self.decoder = nn.TransformerDecoder(
-            nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, batch_first=True),
+            nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, batch_first=True, dropout=0.1),
             num_layers=num_layers,
-            dropout=0.1,
         )
 
         # Final projection to 2D coordinates
